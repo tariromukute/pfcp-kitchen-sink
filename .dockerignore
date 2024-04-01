@@ -1,0 +1,14 @@
+# Exclude common files and directories
+.git
+.idea
+.vscode
+*.log
+*.md
+LICENSE
+README*
+.gitignore
+
+# Exclude build artifacts
+main
+bin/
+vendor/
