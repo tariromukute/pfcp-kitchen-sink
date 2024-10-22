@@ -41,34 +41,40 @@ type IEType uint16
 
 // IE types
 const (
-	NodeIDIEType               IEType = 60
-	RecoveryTimestampIEType    IEType = 96
-	CauseIEType                IEType = 19
-	FSEIDIETYPE                IEType = 57
-	CreatePDRIEType            IEType = 1
-	PDRIDIEType                IEType = 56
-	PrecedenceIEType           IEType = 29
-	PDIIEType                  IEType = 2
-	OuterHeaderRemovelIEType   IEType = 95
-	FARIDIEType                IEType = 108
-	SourceInterfaceIEType      IEType = 20
-	FTEIDIEType                IEType = 21
-	ApplicationIDIEType        IEType = 24
-	NetworkInstanceIEType      IEType = 22
-	SDFFilterIEType            IEType = 23
-	UEIPAddressIEType          IEType = 93
-	CreateFARIEType            IEType = 3
-	ApplyActionIEType          IEType = 44
-	ForwardingParametersIEType IEType = 4
-	DestinationInterfaceIEType IEType = 42
-	ForwardingPolicyIEType     IEType = 41
-	RedirectInformationIEType  IEType = 38
-	OuterHeaderCreationIEType  IEType = 84
+	NodeIDIEType                        IEType = 60
+	RecoveryTimestampIEType             IEType = 96
+	CauseIEType                         IEType = 19
+	FSEIDIETYPE                         IEType = 57
+	CreatePDRIEType                     IEType = 1
+	PDRIDIEType                         IEType = 56
+	PrecedenceIEType                    IEType = 29
+	PDIIEType                           IEType = 2
+	OuterHeaderRemovelIEType            IEType = 95
+	FARIDIEType                         IEType = 108
+	SourceInterfaceIEType               IEType = 20
+	FTEIDIEType                         IEType = 21
+	ApplicationIDIEType                 IEType = 24
+	NetworkInstanceIEType               IEType = 22
+	SDFFilterIEType                     IEType = 23
+	UEIPAddressIEType                   IEType = 93
+	EthernetPacketFilterIEType          IEType = 132
+	MACAddressIEType                    IEType = 133
+	EtherTypeIEType                     IEType = 136
+	EthernetFilterIdIEType              IEType = 138
+	EthernetFilterPropertiesIEType      IEType = 139
+	EthernetPduSessionInformationIEType IEType = 142
+	CreateFARIEType                     IEType = 3
+	ApplyActionIEType                   IEType = 44
+	ForwardingParametersIEType          IEType = 4
+	DestinationInterfaceIEType          IEType = 42
+	ForwardingPolicyIEType              IEType = 41
+	RedirectInformationIEType           IEType = 38
+	OuterHeaderCreationIEType           IEType = 84
 )
 
 type MessageType uint8
 
-//Message types
+// Message types
 const (
 	HeartbeatRequest           MessageType = 1
 	HeartbeatResponse          MessageType = 2
@@ -310,7 +316,7 @@ func (c Cause) String() string {
 	}
 }
 
-//CauseIE information element
+// CauseIE information element
 type CauseIE struct {
 	value Cause
 }
@@ -379,12 +385,14 @@ func (c *CreatePdr) UnMarshal(b []byte) {
 }
 
 type PDI struct {
-	SourceInterface Interface    `yaml:"sourceInterface"`
-	LocalFTEID      *FTEID       `yaml:"localFTEID,omitempty"`
-	NetworkInstance string       `yaml:"networkInstance,omitempty"`
-	UeIPAddress     *UEIPAddress `yaml:"ueIPAddress,omitempty"`
-	SdfFilter       *SDFFilter   `yaml:"sdfFilter,omitempty"`
-	ApplicationID   string       `yaml:"applicationID,omitempty"`
+	SourceInterface               Interface                      `yaml:"sourceInterface"`
+	LocalFTEID                    *FTEID                         `yaml:"localFTEID,omitempty"`
+	NetworkInstance               string                         `yaml:"networkInstance,omitempty"`
+	UeIPAddress                   *UEIPAddress                   `yaml:"ueIPAddress,omitempty"`
+	SdfFilter                     *SDFFilter                     `yaml:"sdfFilter,omitempty"`
+	ApplicationID                 string                         `yaml:"applicationID,omitempty"`
+	EthernetPDUSessionInformation *EthernetPDUSessionInformation `yaml:"ethernetPDUSessionInformation,omitempty"`
+	EthernetPacketFilter          *EthernetPacketFilter          `yaml:"ethernetPacketFilter,omitempty"`
 }
 
 func NewPDI(sourceInterface Interface) *PDI {
@@ -428,6 +436,12 @@ func (pdi *PDI) Marshal() []byte {
 	}
 	if pdi.ApplicationID != "" {
 		n += copy(b[n:], newTLVString(ApplicationIDIEType, pdi.ApplicationID))
+	}
+	if pdi.EthernetPDUSessionInformation != nil {
+		n += copy(b[n:], pdi.EthernetPDUSessionInformation.Marshal())
+	}
+	if pdi.EthernetPacketFilter != nil {
+		n += copy(b[n:], pdi.EthernetPacketFilter.Marshal())
 	}
 	setTLVLength(b, n)
 	return b[:n]
@@ -571,6 +585,171 @@ const (
 	NotifyCP  ApplyAction = 1 << iota
 	Duplicate ApplyAction = 1 << iota
 )
+
+type EthernetPDUSessionInformation struct {
+	EthI uint8 `yaml:"ethI"`
+}
+
+func NewEthernetPDUSessionInformation(ethI uint8) *EthernetPDUSessionInformation {
+	return &EthernetPDUSessionInformation{EthI: ethI}
+}
+
+func (ethInfo *EthernetPDUSessionInformation) Marshal() []byte {
+	b, n := newTLVBuffer(EthernetPduSessionInformationIEType, 0)
+	b[n] = uint8(ethInfo.EthI)
+	n++
+	setTLVLength(b, n)
+	return b[:n]
+}
+
+type EthernetPacketFilter struct {
+	EthernetFilterID         *uint32                   `yaml:"ethernetFilterID,omitempty"`
+	EthernetFilterProperties *EthernetFilterProperties `yaml:"ethernetFilterProperties,omitempty"`
+	MacAddress               *MACAddress               `yaml:"macAddress,omitempty"`
+	Ethertype                *uint16                   `yaml:"ethertype,omitempty"`
+	SdfFilter                *SDFFilter                `yaml:"sdfFilter,omitempty"`
+	// TODO support C-TAG and S-TAG
+}
+
+func NewEthernetPacketFilter() *EthernetPacketFilter {
+	return &EthernetPacketFilter{}
+}
+
+func (ethFilter *EthernetPacketFilter) SetEthernetFilterID(filterId *uint32) {
+	ethFilter.EthernetFilterID = filterId
+}
+
+func (ethFilter *EthernetPacketFilter) SetEthernetFilterProperties(filterProperties *EthernetFilterProperties) {
+	ethFilter.EthernetFilterProperties = filterProperties
+}
+
+func (ethFilter *EthernetPacketFilter) SetMacAddress(addr *MACAddress) {
+	ethFilter.MacAddress = addr
+}
+
+func (ethFilter *EthernetPacketFilter) SetEthertype(ethertype *uint16) {
+	ethFilter.Ethertype = ethertype
+}
+
+func (ethFilter *EthernetPacketFilter) SetSDFFilter(filter *SDFFilter) {
+	ethFilter.SdfFilter = filter
+}
+
+func (ethFilter *EthernetPacketFilter) Marshal() []byte {
+	b, n := newTLVBuffer(EthernetPacketFilterIEType, 0)
+	// Set the EthernetPacketFilter fields here
+	if ethFilter.EthernetFilterID != nil {
+		n += copy(b[n:], newTLVUint32(EthernetFilterIdIEType, *ethFilter.EthernetFilterID))
+	}
+	if ethFilter.EthernetFilterProperties != nil {
+		n += copy(b[n:], ethFilter.EthernetFilterProperties.Marshal())
+	}
+	if ethFilter.MacAddress != nil {
+		n += copy(b[n:], ethFilter.MacAddress.Marshal())
+	}
+	if ethFilter.Ethertype != nil {
+		n += copy(b[n:], newTLVUint16(EtherTypeIEType, *ethFilter.Ethertype))
+	}
+	// Add logic to handle ctag and stag (similar to MacAddress and EtherType)
+	if ethFilter.SdfFilter != nil {
+		n += copy(b[n:], ethFilter.SdfFilter.Marshal())
+	}
+
+	setTLVLength(b, n)
+	return b[:n]
+}
+
+type MACAddress struct {
+	Source           string `yaml:"source,omitempty"`
+	Destination      string `yaml:"destination,omitempty"`
+	UpperSource      string `yaml:"upperSource,omitempty"`
+	UpperDestination string `yaml:"upperDestination,omitempty"`
+}
+
+func NewMACAddress() *MACAddress {
+	return &MACAddress{}
+}
+
+func (mac *MACAddress) SetSource(source string) {
+	mac.Source = source
+}
+
+func (mac *MACAddress) SetDestination(destination string) {
+	mac.Destination = destination
+}
+
+func (mac *MACAddress) SetUpperSource(upperSource string) {
+	mac.UpperSource = upperSource
+}
+
+func (mac *MACAddress) SetUpperDestination(upperDestination string) {
+	mac.UpperDestination = upperDestination
+}
+
+func (mac *MACAddress) Marshal() []byte {
+	b, n := newTLVBuffer(MACAddressIEType, 0)
+	var flags uint8
+	if mac.Source != "" {
+		flags |= 1 << 0 // SOUR bit
+	}
+	if mac.Destination != "" {
+		flags |= 1 << 1 // DEST bit
+	}
+	if mac.UpperSource != "" {
+		flags |= 1 << 2 // USOU bit
+	}
+	if mac.UpperDestination != "" {
+		flags |= 1 << 3 // UDES bit
+	}
+	b[n] = flags
+	n++
+	if mac.Source != "" {
+		source, err := net.ParseMAC(mac.Source)
+		if err != nil {
+			return nil
+		}
+		n += copy(b[n:], source)
+	}
+	if mac.Destination != "" {
+		destination, err := net.ParseMAC(mac.Destination)
+		if err != nil {
+			return nil
+		}
+		n += copy(b[n:], destination)
+	}
+	if mac.UpperSource != "" {
+		upperSource, err := net.ParseMAC(mac.UpperSource)
+		if err != nil {
+			return nil
+		}
+		n += copy(b[n:], upperSource)
+	}
+	if mac.UpperDestination != "" {
+		upperDestination, err := net.ParseMAC(mac.UpperDestination)
+		if err != nil {
+			return nil
+		}
+		n += copy(b[n:], upperDestination)
+	}
+	setTLVLength(b, n)
+	return b[:n]
+}
+
+type EthernetFilterProperties struct {
+	Bide uint8 `yaml:"bide"`
+}
+
+func NewEthernetFilterProperties(bide uint8) *EthernetFilterProperties {
+	return &EthernetFilterProperties{Bide: bide}
+}
+
+func (ethProps *EthernetFilterProperties) Marshal() []byte {
+	b, n := newTLVBuffer(EthernetFilterPropertiesIEType, 0)
+	b[n] = uint8(ethProps.Bide)
+	n++
+	setTLVLength(b, n)
+	return b[:n]
+}
 
 // CreateFAR IE
 type CreateFAR struct {
